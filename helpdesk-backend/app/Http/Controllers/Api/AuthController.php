@@ -4,10 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth; // 👈 هادي هي الـقـرطـاسـة لي كانت ناقصة السيت كاملو!
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth; 
 
 class AuthController extends Controller
 {
@@ -40,13 +37,12 @@ class AuthController extends Controller
         }
     }
 
-    // GET /api/me 
+
     public function me(Request $request)
     {
         return response()->json($request->user());
     }
 
-    // POST /api/auth/logout 
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

@@ -11,9 +11,7 @@ use Illuminate\Database\Seeder;
 
 class InitialDataSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+
     public function run(): void
     {
         User::create([
@@ -37,13 +35,11 @@ class InitialDataSeeder extends Seeder
             'role' => 'requester',
         ]);
 
-        // 2. Création des Catégories
         $categories = ['Incidents IT', 'Demandes d\'accès', 'Maintenance & Logistique'];
         foreach ($categories as $cat) {
             Category::create(['name' => $cat, 'active' => true]);
         }
 
-        // 3. Création des Priorités
         Priority::create(['name' => 'Basse', 'level' => 1, 'active' => true]);
         Priority::create(['name' => 'Moyenne', 'level' => 2, 'active' => true]);
         Priority::create(['name' => 'Haute', 'level' => 3, 'active' => true]);

@@ -9,8 +9,22 @@ class TicketMessage extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['ticket_id', 'author_id', 'body'];
+    protected $fillable = [
+        'ticket_id',
+        'author_id',
+        'body'
+    ];
 
-    public function ticket() { return $this->belongsTo(Ticket::class); }
-    public function author() { return $this->belongsTo(User::class, 'author_id'); }
+    public function author()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'author_id');
+    }
+
+    public function ticket()
+    {
+        return $this->belongsTo(Ticket::class);
+    }
+
+
+
 }

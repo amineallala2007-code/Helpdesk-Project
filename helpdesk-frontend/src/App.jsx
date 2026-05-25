@@ -1,36 +1,45 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthContext } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import TicketsList from './pages/TicketsList';
 import CreateTicket from './pages/CreateTicket';
 import TreatTicket from './pages/TreatTicket';
+import ClientTicketDetails from './pages/ClientTicketDetails';
+import DashboardLayout from './components/DashboardLayout';
 
-const ProtectedRoute = ({ children }) => {
-    const { user } = useContext(AuthContext);
-    if (!user) {
-        return <Navigate to="/login" replace />;
-    }
-    return children;
+const PrivateRoute = ({ children }) => {
+    const token = localStorage.getItem('token');
+    return token ? children : <Navigate to="/login" />;
 };
 
 function App() {
-    const { user } = useContext(AuthContext);
-
     return (
         <Router>
             <Routes>
-                <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-                
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                
-                <Route path="/tickets/create" element={<ProtectedRoute><CreateTicket /></ProtectedRoute>} />
-                
-                <Route path="/tickets" element={<ProtectedRoute><TicketsList /></ProtectedRoute>} />
-                
-                <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
-                <Route path="/tickets/:id/treat" element={<TreatTicket />} />
+                <Route path="/login" element={<Login />} />
+
+                <Route path="/dashboard" element={
+                    <PrivateRoute>
+                        <DashboardLayout><Dashboard /></DashboardLayout>
+                    </PrivateRoute>
+                } />
+                <Route path="/create-ticket" element={
+                    <PrivateRoute>
+                        <DashboardLayout><CreateTicket /></DashboardLayout>
+                    </PrivateRoute>
+                } />
+                <Route path="/tickets/:id" element={
+                    <PrivateRoute>
+                        <DashboardLayout><TreatTicket /></DashboardLayout>
+                    </PrivateRoute>
+                } />
+                <Route path="/client/tickets/:id" element={
+                    <PrivateRoute>
+                        <DashboardLayout><ClientTicketDetails /></DashboardLayout>
+                    </PrivateRoute>
+                } />
+
+                <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>
         </Router>
     );

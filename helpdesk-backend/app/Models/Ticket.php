@@ -11,7 +11,7 @@ class Ticket extends Model
 
     protected $fillable = [
         'requester_id', 'assignee_id', 'category_id', 'priority_id', 
-        'title', 'description', 'status', 'resolved_at', 'closed_at'
+        'title', 'description', 'status', 'resolved_at', 'closed_at','agent_id',
     ];
 
     public function requester() { return $this->belongsTo(User::class, 'requester_id'); }
@@ -19,4 +19,6 @@ class Ticket extends Model
     public function category() { return $this->belongsTo(Category::class); }
     public function priority() { return $this->belongsTo(Priority::class); }
     public function messages() { return $this->hasMany(TicketMessage::class); }
+
+    public function agent() {return $this->belongsTo(User::class, 'agent_id');}
 }

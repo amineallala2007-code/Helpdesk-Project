@@ -7,17 +7,14 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // ملي يشعل السيت، كنشوفو واش ديجا كاين Token مخبي
     useEffect(() => {
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    // كندقو على Laravel نتأكدو واش الـ Token باقي خدام
                     const response = await api.get('/me');
                     setUser(response.data);
                 } catch (err) {
-                    // إيلا كان الـ Token ميت كنمسحوه
                     localStorage.removeItem('token');
                     setUser(null);
                 }
@@ -27,17 +24,15 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    // 🚨 هادي هي الفانكشن لي كيهمنا أمرها دابا!
     const login = async (email, password) => {
         try {
             const response = await api.post('/auth/login', { email, password });
             
-            // 🌟 السطر السحري لي كان ناقص المشروع كاملو:
             const token = response.data.token;
             const userData = response.data.user;
 
-            localStorage.setItem('token', token); // 👈 حفظ الـ Token ف المتصفح
-            setUser(userData); // حفظ بيانات المستخدم ف الـ React State
+            localStorage.setItem('token', token); 
+            setUser(userData); 
 
             return userData;
         } catch (error) {
