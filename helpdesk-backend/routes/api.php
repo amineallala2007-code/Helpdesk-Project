@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\TicketMessageController;
 use App\Http\Controllers\Admin\UserController;
 
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/register-request', [AuthController::class, 'requestAccount']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -27,13 +28,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::put('/tickets/{id}/assign', [TicketController::class, 'assignToMe']);
     Route::put('/tickets/{id}/status', [TicketController::class, 'updateStatus']);
+    Route::put('/tickets/{id}/confirm-solution', [TicketController::class, 'confirmSolution']);
 
     Route::get('/tickets/{id}/messages', [TicketMessageController::class, 'index']);
     Route::post('/tickets/{id}/messages', [TicketMessageController::class, 'store']);
 
 
     Route::get('/admin/users', [UserController::class, 'index']);
+    Route::post('/admin/users', [UserController::class, 'store']);
     Route::put('/admin/users/{id}', [UserController::class, 'updateUserRole']);
+    Route::get('/admin/registration-requests', [UserController::class, 'registrationRequests']);
+    Route::post('/admin/registration-requests/{id}/approve', [UserController::class, 'approveRegistration']);
+    Route::post('/admin/registration-requests/{id}/reject', [UserController::class, 'rejectRegistration']);
 
     Route::put('/admin/tickets/{id}/assign', [TicketController::class, 'assignAgent']);
 

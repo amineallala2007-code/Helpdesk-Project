@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\RegistrationRequest;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth; 
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -35,6 +38,49 @@ class AuthController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function requestAccount(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:6|confirmed',
+            'role' => 'required|in:requester,agent',
+        ]);
+
+        if (User::where('email', $validated['email'])->exists()) {
+            return response()->json(['message' => 'Un compte existe deja avec cet email.'], 422);
+        }
+
+        $registrationRequest = RegistrationRequest::where('email', $validated['email'])->first();
+
+        if ($registrationRequest && $registrationRequest->status === 'approved') {
+            return response()->json(['message' => 'Cette demande est deja approuvee. Connectez-vous.'], 422);
+        }
+
+        if ($registrationRequest) {
+            $registrationRequest->update([
+                'name' => $validated['name'],
+                'password' => Hash::make($validated['password']),
+                'role' => $validated['role'],
+                'status' => 'pending',
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+            ]);
+        } else {
+            $registrationRequest = RegistrationRequest::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => $validated['role'],
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Demande envoyee. Un administrateur doit valider le compte.',
+            'request' => $registrationRequest,
+        ], 201);
     }
 
 

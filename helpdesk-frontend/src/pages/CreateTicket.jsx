@@ -7,6 +7,7 @@ function CreateTicket() {
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [priorityId, setPriorityId] = useState('');
+    const [attachment, setAttachment] = useState(null);
     
     const [categories, setCategories] = useState([]);
     const [priorities, setPriorities] = useState([]);
@@ -41,12 +42,16 @@ function CreateTicket() {
         setSubmitting(true);
 
         try {
-            await api.post('/tickets', {
-                title: title,
-                description: description,
-                category_id: categoryId,
-                priority_id: priorityId
-            });
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('category_id', categoryId);
+            formData.append('priority_id', priorityId);
+            if (attachment) {
+                formData.append('attachment', attachment);
+            }
+
+            await api.post('/tickets', formData);
 
             alert('Ticket créé avec succès ! 🎉');
             navigate('/dashboard'); 
@@ -116,6 +121,17 @@ function CreateTicket() {
                         <option value="">-- Choisir une priorité --</option>
                         {priorities.map(prio => <option key={prio.id} value={prio.id}>{prio.name}</option>)}
                     </select>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ fontWeight: 'bold' }}>Photo explicative :</label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                        style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', background: '#fff' }}
+                    />
+                    {attachment && <small style={{ color: '#475569' }}>Image choisie: {attachment.name}</small>}
                 </div>
 
                 <button 

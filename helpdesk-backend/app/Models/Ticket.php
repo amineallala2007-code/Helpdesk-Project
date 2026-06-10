@@ -19,6 +19,7 @@ class Ticket extends Model
     public function category() { return $this->belongsTo(Category::class); }
     public function priority() { return $this->belongsTo(Priority::class); }
     public function messages() { return $this->hasMany(TicketMessage::class); }
+    public function attachments() { return $this->hasMany(Attachment::class); }
 
     public function agent() {return $this->belongsTo(User::class, 'agent_id');}
 }

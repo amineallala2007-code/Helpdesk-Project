@@ -1,86 +1,160 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
-import Sidebar from '../components/Sidebar';
 
+const roleOf = (user) => String(user?.role || '').toLowerCase();
+const isAdminRole = (role) => role === 'admin' || role === '1';
+const isAgentRole = (role) => role === 'agent' || role === '2';
 
-
-const getStatusStyle = (status) => {
-    switch (status?.toLowerCase()) {
-        case 'open': return { background: '#d1e7dd', color: '#0f5132', padding: '6px 14px', borderRadius: '50px', fontWeight: 'bold', fontSize: '12px', display: 'inline-block' };
-        case 'in_progress': return { background: '#fff3cd', color: '#664d03', padding: '6px 14px', borderRadius: '50px', fontWeight: 'bold', fontSize: '12px', display: 'inline-block' };
-        case 'resolved': return { background: '#cfe2ff', color: '#084298', padding: '6px 14px', borderRadius: '50px', fontWeight: 'bold', fontSize: '12px', display: 'inline-block' };
-        case 'closed': return { background: '#e2e3e5', color: '#41464b', padding: '6px 14px', borderRadius: '50px', fontWeight: 'bold', fontSize: '12px', display: 'inline-block' };
-        default: return { background: '#eee', color: '#333', padding: '6px 14px', borderRadius: '50px' };
-    }
+const statusColors = {
+    open: '#16a34a',
+    in_progress: '#f59e0b',
+    resolved: '#2563eb',
+    closed: '#64748b',
 };
 
-const getPriorityStyle = (priorityName) => {
-    const name = priorityName?.toLowerCase() || '';
-    if (name.includes('high') || name.includes('élevé') || name.includes('urgent')) return { color: '#dc3545', fontWeight: 'bold', background: '#f8d7da', padding: '4px 10px', borderRadius: '6px', fontSize: '12px' };
-    if (name.includes('medium') || name.includes('moyen')) return { color: '#fd7e14', fontWeight: 'bold', background: '#fff3cd', padding: '4px 10px', borderRadius: '6px', fontSize: '12px' };
-    return { color: '#198754', fontWeight: 'bold', background: '#d1e7dd', padding: '4px 10px', borderRadius: '6px', fontSize: '12px' };
+const badge = (bg, color = '#0f172a') => ({
+    display: 'inline-block',
+    padding: '5px 10px',
+    borderRadius: '999px',
+    background: bg,
+    color,
+    fontWeight: 700,
+    fontSize: '12px',
+});
+
+const card = {
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '18px',
 };
+
+function BarChart({ title, rows }) {
+    const max = Math.max(1, ...rows.map(row => row.value));
+
+    return (
+        <div style={card}>
+            <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0f172a' }}>{title}</h3>
+            <div style={{ display: 'grid', gap: '12px' }}>
+                {rows.map(row => (
+                    <div key={row.label}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px', color: '#475569' }}>
+                            <span>{row.label}</span>
+                            <strong>{row.value}</strong>
+                        </div>
+                        <div style={{ height: '9px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+                            <div style={{ width: `${(row.value / max) * 100}%`, minWidth: row.value ? '8px' : '0', height: '100%', background: row.color || '#2563eb' }} />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 const Dashboard = () => {
-    const navigate= useNavigate();
+    const navigate = useNavigate();
     const { user: contextUser } = useContext(AuthContext);
     const localUser = JSON.parse(localStorage.getItem('user')) || {};
     const currentUser = contextUser || localUser;
+    const role = roleOf(currentUser);
+    const isAdmin = isAdminRole(role);
+    const isAgent = isAgentRole(role);
 
     const [tickets, setTickets] = useState([]);
     const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const userRole = String(currentUser?.role || '').toLowerCase();
-    const isAdmin = userRole.includes('admin') || userRole === '1';
-    const isAgent = userRole.includes('agent') || userRole === '2';
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'requester' });
 
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const ticketsRes = await api.get('/tickets');
+            setTickets(Array.isArray(ticketsRes.data) ? ticketsRes.data : []);
 
-
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                const response = await api.get('/tickets');
-                setTickets(Array.isArray(response.data) ? response.data : response.data.tickets || []);
-
-                if (isAdmin) {
-                    try {
-                        const usersRes = await api.get('/admin/users');
-                        setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
-                    } catch (uErr) {
-                        console.error("Erreur chargement utilisateurs:", uErr);
-                    }
-                }
-
-                setLoading(false);
-            } catch (err) {
-                console.error("Error fetching data:", err);
-                setError("Impossible de charger les données du Dashboard.");
-                setLoading(false);
+            if (isAdmin) {
+                const [usersRes, requestsRes] = await Promise.all([
+                    api.get('/admin/users'),
+                    api.get('/admin/registration-requests'),
+                ]);
+                setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+                setRequests(Array.isArray(requestsRes.data) ? requestsRes.data : []);
             }
-        };
-
-        if (currentUser && currentUser.id) {
-            fetchDashboardData();
-        } else {
+        } catch (err) {
+            setError(err.response?.data?.message || 'Impossible de charger le dashboard.');
+        } finally {
             setLoading(false);
         }
-    }, [currentUser, isAdmin]);
+    };
 
-    const handleSaveRole = async (userId, userCurrentName, userCurrentEmail, selectedRole) => {
+    useEffect(() => {
+        if (currentUser?.id) fetchDashboardData();
+    }, [currentUser?.id, isAdmin]);
+
+    const stats = useMemo(() => {
+        const byStatus = ['open', 'in_progress', 'resolved', 'closed'].map(status => ({
+            label: status.toUpperCase(),
+            value: tickets.filter(t => t.status === status).length,
+            color: statusColors[status],
+        }));
+
+        const priorityMap = tickets.reduce((acc, ticket) => {
+            const name = ticket.priority?.name || 'Normale';
+            acc[name] = (acc[name] || 0) + 1;
+            return acc;
+        }, {});
+
+        const byPriority = Object.entries(priorityMap).map(([label, value]) => ({
+            label,
+            value,
+            color: '#0ea5e9',
+        }));
+
+        return { byStatus, byPriority };
+    }, [tickets]);
+
+    const handleSaveRole = async (userId, name, email, selectedRole) => {
         try {
-            const response = await api.put(`/admin/users/${userId}`, {
-                name: userCurrentName,
-                email: userCurrentEmail,
-                role: selectedRole
-            });
-            alert(response.data.message || "Rôle mis à jour avec succès ! 🎉");
+            const response = await api.put(`/admin/users/${userId}`, { name, email, role: selectedRole });
+            alert(response.data.message || 'Role mis a jour.');
+            fetchDashboardData();
         } catch (err) {
-            console.error(err);
-            const backendError = err.response?.data?.error || err.response?.data?.message || "Erreur inconnue";
-            alert(`⚠️ Échec de modification : ${backendError}`);
+            alert(err.response?.data?.message || 'Echec de modification.');
+        }
+    };
+
+    const handleCreateUser = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/admin/users', newUser);
+            setNewUser({ name: '', email: '', password: '', role: 'requester' });
+            alert('Utilisateur cree.');
+            fetchDashboardData();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Impossible de creer utilisateur.');
+        }
+    };
+
+    const handleRegistration = async (requestId, action) => {
+        try {
+            await api.post(`/admin/registration-requests/${requestId}/${action}`);
+            fetchDashboardData();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Action impossible.');
+        }
+    };
+
+    const assignTicket = async (ticketId, agentId) => {
+        if (!agentId) return;
+        try {
+            const response = await api.put(`/admin/tickets/${ticketId}/assign`, { assignee_id: agentId });
+            setTickets(prev => prev.map(t => t.id === ticketId ? response.data.ticket : t));
+        } catch (err) {
+            alert(err.response?.data?.message || 'Erreur d assignation.');
         }
     };
 
@@ -88,220 +162,135 @@ const Dashboard = () => {
 
     return (
         <div style={{ width: '100%', margin: '0 auto' }}>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
                 <div>
-                    <h2 style={{ margin: 0, color: '#1e293b', fontSize: '24px', fontWeight: '700' }}>
-                        {isAdmin ? '👑 Espace Admin - Super Vision' : isAgent ? '🎧 Espace Agent - Gestion des Tickets' : '📊 Dashboard'}
+                    <h2 style={{ margin: 0, color: '#0f172a', fontSize: '26px', fontWeight: 800 }}>
+                        {isAdmin ? 'Espace Admin' : isAgent ? 'Espace Agent Support' : 'Dashboard Demandeur'}
                     </h2>
-                    <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>
-                        Bienvenue, <span style={{ fontWeight: 'bold', color: isAdmin ? '#ef4444' : '#0284c7' }}>{currentUser?.name || 'Admin'}</span> 👋
-                    </p>
+                    <p style={{ margin: '6px 0 0', color: '#64748b' }}>Bienvenue, <strong>{currentUser?.name || 'Utilisateur'}</strong></p>
                 </div>
-                <div>
-                    {!isAgent && !isAdmin && (
-                            <Link to="/create-ticket" style={{ padding: '10px 20px', background: '#10b981', color: '#fff', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px' }}>
-                                ➕ Créer un Ticket
-                            </Link>
-                    )}
-                </div>
-            </div>
-
-            {error && <div style={{ padding: '15px', color: '#ef4444', background: '#fdf2f2', borderRadius: '8px', marginBottom: '20px' }}>⚠️ {error}</div>}
-
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 200px', background: '#fff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '12px' }}>
-                    <h4 style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>{isAdmin ? 'Total Global Tickets' : 'Total Tickets'}</h4>
-                    <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '10px 0 0 0', color: '#1e293b' }}>{tickets.length}</p>
-                </div>
-                <div style={{ flex: '1 1 200px', background: '#fff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #10b981' }}>
-                    <h4 style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>🟢 Tickets Ouverts</h4>
-                    <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '10px 0 0 0', color: '#10b981' }}>{tickets.filter(t => t.status?.toLowerCase() === 'open').length}</p>
-                </div>
-                <div style={{ flex: '1 1 200px', background: '#fff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #f59e0b' }}>
-                    <h4 style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>🟡 En Cours</h4>
-                    <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '10px 0 0 0', color: '#f59e0b' }}>{tickets.filter(t => t.status?.toLowerCase() === 'in_progress').length}</p>
-                </div>
-                {isAdmin && (
-                    <div style={{ flex: '1 1 200px', background: '#fff', border: '1px solid #e2e8f0', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #6366f1' }}>
-                        <h4 style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>👥 Utilisateurs Inscrits</h4>
-                        <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '10px 0 0 0', color: '#6366f1' }}>{users.length}</p>
-                    </div>
+                {!isAgent && !isAdmin && (
+                    <Link to="/create-ticket" style={{ padding: '11px 18px', background: '#16a34a', color: '#fff', textDecoration: 'none', borderRadius: '8px', fontWeight: 700 }}>
+                        Creer un ticket
+                    </Link>
                 )}
             </div>
 
-            {isAdmin && users.length > 0 && (
-                <div style={{ marginBottom: '40px' }}>
-                    <h3 style={{ color: '#1e293b', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>👥 Contrôle des Utilisateurs (Rôles)</h3>
-                    <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                            <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                                    <th style={{ padding: '16px 20px' }}>ID</th>
-                                    <th style={{ padding: '16px 20px' }}>Nom</th>
-                                    <th style={{ padding: '16px 20px' }}>Email</th>
-                                    <th style={{ padding: '16px 20px' }}>Rôle Actuel</th>
-                                    <th style={{ padding: '16px 20px' }}>Changer le Rôle</th>
-                                    <th style={{ padding: '16px 20px' }}>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {users.map(u => {
-                                    const currentRoleCleaned = String(u.role || '').toLowerCase();
-                                    const isSuperAdminPrincipal = u.email === 'admin@helpdesk.com';
+            {error && <div style={{ padding: '14px', color: '#991b1b', background: '#fee2e2', borderRadius: '8px', marginBottom: '20px' }}>{error}</div>}
 
-                                    return (
-                                        <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                            <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>#{u.id}</td>
-                                            <td style={{ padding: '16px 20px', fontWeight: '600', color: '#1e293b' }}>{u.name}</td>
-                                            <td style={{ padding: '16px 20px', color: '#475569' }}>{u.email}</td>
-                                            <td style={{ padding: '16px 20px' }}>
-                                                <span style={{
-                                                    padding: '4px 10px',
-                                                    borderRadius: '20px',
-                                                    fontSize: '12px',
-                                                    fontWeight: 'bold',
-                                                    background: (currentRoleCleaned === 'admin' || currentRoleCleaned === '1') ? '#fee2e2' : (currentRoleCleaned === 'agent' || currentRoleCleaned === '2') ? '#e0f2fe' : '#dcfce7',
-                                                    color: (currentRoleCleaned === 'admin' || currentRoleCleaned === '1') ? '#991b1b' : (currentRoleCleaned === 'agent' || currentRoleCleaned === '2') ? '#0369a1' : '#166534'
-                                                }}>
-                                                    {currentRoleCleaned === 'requester' ? 'REQUESTER' : String(u.role).toUpperCase()}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '16px 20px' }}>
-                                                <select
-                                                    value={u.role === 'user' ? 'requester' : u.role}
-                                                    disabled={isSuperAdminPrincipal}
-                                                    onChange={(e) => {
-                                                        const newRole = e.target.value;
-                                                        setUsers(prev => prev.map(user => user.id === u.id ? { ...user, role: newRole } : user));
-                                                    }}
-                                                    style={{
-                                                        padding: '6px 10px',
-                                                        borderRadius: '6px',
-                                                        border: '1px solid #cbd5e1',
-                                                        fontSize: '14px',
-                                                        backgroundColor: isSuperAdminPrincipal ? '#f1f5f9' : '#fff',
-                                                        cursor: isSuperAdminPrincipal ? 'not-allowed' : 'default'
-                                                    }}
-                                                >
-                                                    <option value="requester">User / Client</option>
-                                                    <option value="agent">Support Agent</option>
-                                                    <option value="admin">Admin</option>
-                                                </select>
-                                            </td>
-                                            <td style={{ padding: '16px 20px' }}>
-                                                <button
-                                                    onClick={() => handleSaveRole(u.id, u.name, u.email, u.role)}
-                                                    disabled={isSuperAdminPrincipal}
-                                                    style={{
-                                                        padding: '6px 14px',
-                                                        background: isSuperAdminPrincipal ? '#cbd5e1' : '#10b981',
-                                                        color: isSuperAdminPrincipal ? '#64748b' : '#fff',
-                                                        border: 'none',
-                                                        borderRadius: '6px',
-                                                        cursor: isSuperAdminPrincipal ? 'not-allowed' : 'pointer',
-                                                        fontWeight: 'bold',
-                                                        fontSize: '13px'
-                                                    }}
-                                                >
-                                                    💾 Enregistrer
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                <div style={card}><span style={{ color: '#64748b' }}>Total tickets</span><p style={{ fontSize: '30px', fontWeight: 800, margin: '8px 0 0' }}>{tickets.length}</p></div>
+                <div style={card}><span style={{ color: '#64748b' }}>Ouverts</span><p style={{ fontSize: '30px', fontWeight: 800, margin: '8px 0 0', color: '#16a34a' }}>{tickets.filter(t => t.status === 'open').length}</p></div>
+                <div style={card}><span style={{ color: '#64748b' }}>En cours</span><p style={{ fontSize: '30px', fontWeight: 800, margin: '8px 0 0', color: '#f59e0b' }}>{tickets.filter(t => t.status === 'in_progress').length}</p></div>
+                {isAdmin && <div style={card}><span style={{ color: '#64748b' }}>Demandes comptes</span><p style={{ fontSize: '30px', fontWeight: 800, margin: '8px 0 0', color: '#2563eb' }}>{requests.length}</p></div>}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '26px' }}>
+                <BarChart title="Diagramme par statut" rows={stats.byStatus} />
+                <BarChart title="Diagramme par priorite" rows={stats.byPriority.length ? stats.byPriority : [{ label: 'Aucun', value: 0 }]} />
+            </div>
+
+            {isAdmin && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+                    <div style={card}>
+                        <h3 style={{ marginTop: 0 }}>Demandes d inscription</h3>
+                        {requests.length === 0 ? <p style={{ color: '#64748b' }}>Aucune demande en attente.</p> : requests.map(req => (
+                            <div key={req.id} style={{ borderTop: '1px solid #e2e8f0', padding: '12px 0' }}>
+                                <strong>{req.name}</strong>
+                                <div style={{ color: '#64748b', fontSize: '13px' }}>{req.email} - {req.role}</div>
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                                    <button onClick={() => handleRegistration(req.id, 'approve')} style={{ padding: '7px 11px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Approuver</button>
+                                    <button onClick={() => handleRegistration(req.id, 'reject')} style={{ padding: '7px 11px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Refuser</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <form onSubmit={handleCreateUser} style={card}>
+                        <h3 style={{ marginTop: 0 }}>Ajouter un utilisateur</h3>
+                        {['name', 'email', 'password'].map(field => (
+                            <input key={field} type={field === 'password' ? 'password' : field === 'email' ? 'email' : 'text'} placeholder={field === 'name' ? 'Nom' : field === 'email' ? 'Email' : 'Mot de passe'} value={newUser[field]} onChange={(e) => setNewUser({ ...newUser, [field]: e.target.value })} required style={{ width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+                        ))}
+                        <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} style={{ width: '100%', padding: '10px', marginBottom: '10px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                            <option value="requester">Demandeur</option>
+                            <option value="agent">Agent</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button type="submit" style={{ width: '100%', padding: '10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700 }}>Creer utilisateur</button>
+                    </form>
+                </div>
+            )}
+
+            {isAdmin && users.length > 0 && (
+                <div style={{ marginBottom: '28px' }}>
+                    <h3>Gestion des utilisateurs</h3>
+                    <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                            <thead><tr style={{ background: '#f8fafc', textAlign: 'left' }}><th style={{ padding: '14px' }}>Nom</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
+                            <tbody>
+                                {users.map(u => (
+                                    <tr key={u.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                                        <td style={{ padding: '14px' }}>{u.name}</td>
+                                        <td>{u.email}</td>
+                                        <td>
+                                            <select value={roleOf(u)} disabled={u.email === 'admin@helpdesk.com'} onChange={(e) => setUsers(prev => prev.map(item => item.id === u.id ? { ...item, role: e.target.value } : item))}>
+                                                <option value="requester">Demandeur</option>
+                                                <option value="agent">Agent</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </td>
+                                        <td><button disabled={u.email === 'admin@helpdesk.com'} onClick={() => handleSaveRole(u.id, u.name, u.email, roleOf(u))}>Enregistrer</button></td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
                 </div>
             )}
 
-            <h3 style={{ color: '#334155', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>
-                {isAdmin ? '🎫 Supervision de tous les Tickets' : isAgent ? '📥 Toutes les plaintes reçues' : '🎫 Liste de mes Tickets'}
-            </h3>
-
-            <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ color: '#334155' }}>{isAdmin ? 'Tous les tickets' : isAgent ? 'Tickets a traiter' : 'Mes tickets'}</h3>
+            <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
                     <thead>
-                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                            <th style={{ padding: '16px 20px' }}>ID</th>
-                            <th style={{ padding: '16px 20px' }}>Sujet</th>
-                            <th style={{ padding: '16px 20px' }}>Description</th>
-                            {(isAgent || isAdmin) && <th style={{ padding: '16px 20px' }}>Demandeur</th>}
-                            <th style={{ padding: '16px 20px' }}>Catégorie</th>
-                            <th style={{ padding: '16px 20px' }}>Priorité</th>
-                            <th style={{ padding: '16px 20px' }}>Statut</th>
-                            {isAdmin && <th style={{ padding: '16px 20px' }}>Assigner à un Agent</th>}
-                            <th style={{ padding: '16px 20px' }}>Actions</th>
+                        <tr style={{ background: '#f8fafc' }}>
+                            <th style={{ padding: '14px' }}>ID</th>
+                            <th>Sujet</th>
+                            <th>Description</th>
+                            {(isAgent || isAdmin) && <th>Demandeur</th>}
+                            <th>Categorie</th>
+                            <th>Priorite</th>
+                            <th>Statut</th>
+                            {isAdmin && <th>Agent</th>}
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {tickets.length === 0 ? (
-                            <tr><td colSpan={isAdmin ? "9" : "8"} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>Aucun ticket trouvé.</td></tr>
-                        ) : (
-                            tickets.map((ticket) => (
-                                <tr key={ticket.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td style={{ padding: '16px 20px', fontWeight: 'bold' }}>#{ticket.id}</td>
-                                    <td style={{ padding: '16px 20px', color: '#0284c7', fontWeight: '600' }}>{ticket.title}</td>
-                                    <td style={{ padding: '16px 20px', color: '#475569', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.description}</td>
-                                    {(isAgent || isAdmin) && <td style={{ padding: '16px 20px', fontWeight: '500' }}>{ticket.requester?.name || 'Inconnu'}</td>}
-                                    <td style={{ padding: '16px 20px' }}>{ticket.category?.name || 'Général'}</td>
-                                    <td style={{ padding: '16px 20px' }}><span style={getPriorityStyle(ticket.priority?.name)}>{ticket.priority?.name || 'Normale'}</span></td>
-                                    <td style={{ padding: '16px 20px' }}><span style={getStatusStyle(ticket.status)}>{ticket.status?.toUpperCase()}</span></td>
-
-                                    {isAdmin && (
-                                        <td style={{ padding: '16px 20px' }}>
-                                            <select
-                                                value={ticket.assignee_id || ''}
-                                                onChange={async (e) => {
-                                                    const selectedAgentId = e.target.value;
-                                                    if (!selectedAgentId) return;
-                                                    try {
-                                                        await api.put(`/admin/tickets/${ticket.id}/assign`, { assignee_id: selectedAgentId });
-                                                        setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, assignee_id: selectedAgentId, status: 'in_progress' } : t));
-                                                        alert("Ticket assigné avec succès à l'agent ! 🚀");
-                                                    } catch (err) {
-                                                        const assignError = err.response?.data?.error || err.response?.data?.message || "Erreur inconnue";
-                                                        alert(`⚠️ Erreur d'assignation : ${assignError}`);
-                                                    }
-                                                }}
-                                                style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                                            >
-                                                <option value="">-- Choisir un Agent --</option>
-                                                {users.filter(u => String(u.role).toLowerCase() === 'agent' || String(u.role) === '2').map(agent => (
-                                                    <option key={agent.id} value={agent.id}>{agent.name}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                    )}
-
-                                    <td style={{ padding: '16px 20px' }}>
-                                        {isAdmin ? (
-                                            <button
-                                                onClick={() => navigate(`/tickets/${ticket.id}`)}
-                                                style={{ padding: '6px 14px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                            >
-                                                👁️ Inspecter
-                                            </button>
-                                        ) : isAgent ? (
-                                            <button
-                                                onClick={() => navigate(`/tickets/${ticket.id}`)}
-                                                style={{ padding: '6px 14px', background: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                            >
-                                                🛠️ Traiter
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => navigate(`/client/tickets/${ticket.id}`)}
-                                                style={{ padding: '6px 14px', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                            >
-                                                👁️ Voir Details
-                                            </button>
-                                        )}
+                            <tr><td colSpan={isAdmin ? 9 : 8} style={{ padding: '28px', textAlign: 'center', color: '#64748b' }}>Aucun ticket trouve.</td></tr>
+                        ) : tickets.map(ticket => (
+                            <tr key={ticket.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '14px', fontWeight: 700 }}>#{ticket.id}</td>
+                                <td style={{ color: '#0284c7', fontWeight: 700 }}>{ticket.title}</td>
+                                <td style={{ color: '#475569', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.description}</td>
+                                {(isAgent || isAdmin) && <td>{ticket.requester?.name || 'Inconnu'}</td>}
+                                <td>{ticket.category?.name || 'General'}</td>
+                                <td><span style={badge('#fef3c7', '#92400e')}>{ticket.priority?.name || 'Normale'}</span></td>
+                                <td><span style={badge(`${statusColors[ticket.status] || '#64748b'}22`, statusColors[ticket.status] || '#334155')}>{ticket.status?.toUpperCase()}</span></td>
+                                {isAdmin && (
+                                    <td>
+                                        <select value={ticket.assignee_id || ''} onChange={(e) => assignTicket(ticket.id, e.target.value)}>
+                                            <option value="">Choisir agent</option>
+                                            {users.filter(u => roleOf(u) === 'agent').map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
+                                        </select>
                                     </td>
-                                </tr>
-                            ))
-                        )}
+                                )}
+                                <td>
+                                    <button onClick={() => navigate(isAgent || isAdmin ? `/tickets/${ticket.id}` : `/client/tickets/${ticket.id}`)} style={{ padding: '7px 12px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>
+                                        Ouvrir chat
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>

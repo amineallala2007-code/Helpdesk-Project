@@ -1,124 +1,154 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
+
+const imageBox = { marginTop: '8px', maxWidth: '260px', borderRadius: '8px', border: '1px solid #e2e8f0' };
+
+const renderAttachments = (attachments = []) => attachments.map((file) => (
+    <div key={file.id || file.url}>
+        {String(file.mime || '').startsWith('image/') ? (
+            <a href={file.url} target="_blank" rel="noreferrer">
+                <img src={file.url} alt={file.original_name || 'piece jointe'} style={imageBox} />
+            </a>
+        ) : (
+            <a href={file.url} target="_blank" rel="noreferrer">{file.original_name || 'Piece jointe'}</a>
+        )}
+    </div>
+));
 
 const TreatTicket = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const chatEndRef = useRef(null);
-
     const user = JSON.parse(localStorage.getItem('user')) || {};
-    const token = localStorage.getItem('token');
-    const currentUserId = user.id;
 
     const [ticket, setTicket] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    const [attachment, setAttachment] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     const fetchTicketDetails = async () => {
-        if (!id) return;
         try {
             setLoading(true);
-            const config = { headers: { Authorization: `Bearer ${token}` } };
             const [ticketRes, messagesRes] = await Promise.all([
-                api.get(`/tickets/${id}`, config),
-                api.get(`/tickets/${id}/messages`, config)
+                api.get(`/tickets/${id}`),
+                api.get(`/tickets/${id}/messages`)
             ]);
             setTicket(ticketRes.data);
             setMessages(Array.isArray(messagesRes.data) ? messagesRes.data : []);
-            setLoading(false);
         } catch (err) {
-            setError("Impossible de charger les détails.");
+            setError('Impossible de charger les details.');
+        } finally {
             setLoading(false);
-        }
-    };
-
-    // وظيفة تغيير الحالة
-    const handleUpdateStatus = async (newStatus) => {
-        try {
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            await api.put(`/tickets/${id}/status`, { status: newStatus }, config);
-            fetchTicketDetails(); // تحديث البيانات بعد التغيير
-        } catch (err) {
-            alert("Erreur: Vous n'avez pas la permission.");
         }
     };
 
     useEffect(() => {
-        fetchTicketDetails();
+        if (id) fetchTicketDetails();
     }, [id]);
+
+    const handleUpdateStatus = async (newStatus) => {
+        try {
+            const response = await api.put(`/tickets/${id}/status`, { status: newStatus });
+            setTicket(response.data.ticket);
+        } catch (err) {
+            alert(err.response?.data?.message || "Erreur: vous n'avez pas la permission.");
+        }
+    };
+
+    const handleAssignToMe = async () => {
+        try {
+            const response = await api.put(`/tickets/${id}/assign`);
+            setTicket(response.data.ticket);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Erreur lors de l assignation.');
+        }
+    };
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim() && !attachment) return;
+
         try {
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            const response = await api.post(`/tickets/${id}/messages`, { body: newMessage }, config);
+            const formData = new FormData();
+            formData.append('body', newMessage);
+            if (attachment) {
+                formData.append('attachment', attachment);
+            }
+            const response = await api.post(`/tickets/${id}/messages`, formData);
             setMessages(prev => [...prev, response.data]);
             setNewMessage('');
+            setAttachment(null);
+            e.target.reset();
         } catch (err) {
-            alert("Erreur lors de l'envoi");
+            alert(err.response?.data?.message || "Erreur lors de l'envoi");
         }
     };
 
     if (loading) return <div style={{ padding: '20px' }}>Chargement...</div>;
-    if (error) return <div style={{ padding: '20px', color: 'red' }}>⚠️ {error}</div>;
+    if (error) return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
 
     return (
-        <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-            <button onClick={() => navigate('/dashboard')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '8px 16px' }}>⬅️ Retour</button>
+        <div style={{ width: '100%', maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+            <button onClick={() => navigate('/dashboard')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '8px 16px' }}>Retour</button>
 
-            {/* Header مع الحالة */}
-            <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                <h2 style={{ margin: '0 0 10px 0' }}>🎫 {ticket?.title}</h2>
-                
-                {/* بوطونات تغيير الحالة */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            <div style={{ background: '#fff', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                <h2 style={{ margin: '0 0 10px 0' }}>{ticket?.title}</h2>
+                <p style={{ color: '#475569' }}>{ticket?.description}</p>
+                <p><strong>Demandeur:</strong> {ticket?.requester?.name || 'Inconnu'}</p>
+                <p><strong>Agent assigne:</strong> {ticket?.assignee?.name || 'Aucun'}</p>
+                {ticket?.attachments?.length > 0 && (
+                    <div>
+                        <strong>Photos du ticket:</strong>
+                        {renderAttachments(ticket.attachments)}
+                    </div>
+                )}
+                {!ticket?.assignee_id && (
+                    <button onClick={handleAssignToMe} style={{ marginTop: '12px', padding: '8px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                        Prendre ce ticket
+                    </button>
+                )}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
                     {['open', 'in_progress', 'resolved', 'closed'].map((s) => (
-                        <button 
-                            key={s}
-                            onClick={() => handleUpdateStatus(s)}
-                            style={{
-                                padding: '5px 12px', fontSize: '12px', borderRadius: '4px', border: 'none', cursor: 'pointer',
-                                background: ticket?.status === s ? '#0284c7' : '#e2e8f0',
-                                color: ticket?.status === s ? '#fff' : '#000'
-                            }}
-                        >
+                        <button key={s} onClick={() => handleUpdateStatus(s)} style={{ padding: '7px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: ticket?.status === s ? '#0284c7' : '#e2e8f0', color: ticket?.status === s ? '#fff' : '#0f172a' }}>
                             {s.toUpperCase()}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-                <div style={{ height: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px', paddingRight: '10px' }}>
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px' }}>
+                <h3 style={{ marginTop: 0 }}>Discussion</h3>
+                <div style={{ height: '340px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px', paddingRight: '10px' }}>
                     {messages.map((msg) => {
-                        const isMe = msg.author_id === currentUserId;
-                        const authorName = msg.author?.name || "Utilisateur";
+                        const isMe = msg.author_id === user.id;
+                        const authorName = msg.author?.name || 'Utilisateur';
                         const role = String(msg.author?.role || '').toLowerCase();
-                        let label = isMe ? "Vous" : (role.includes('admin') ? "👑 " + authorName : role.includes('agent') ? "🎧 " + authorName : authorName);
+                        const label = isMe ? 'Vous' : `${authorName} (${role || 'user'})`;
 
                         return (
-                            <div key={msg.id || Math.random()} style={{ textAlign: isMe ? 'right' : 'left' }}>
+                            <div key={msg.id} style={{ textAlign: isMe ? 'right' : 'left' }}>
                                 <div style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', background: isMe ? '#0284c7' : '#f1f5f9', color: isMe ? '#fff' : '#1e293b', textAlign: 'left', maxWidth: '75%' }}>
-                                    {msg.body}
+                                    {msg.body && <div>{msg.body}</div>}
+                                    {renderAttachments(msg.attachments)}
                                 </div>
-                                <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 'bold' }}>{label}</div>
+                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', fontWeight: 'bold' }}>{label}</div>
                             </div>
                         );
                     })}
                     <div ref={chatEndRef} />
                 </div>
 
-                <form onSubmit={handleSendMessage} style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                    <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Écrire un message..." style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                <form onSubmit={handleSendMessage} style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px' }}>
+                    <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Ecrire un message..." style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
                     <button type="submit" style={{ padding: '10px 20px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Envoyer</button>
+                    <input type="file" accept="image/*" onChange={(e) => setAttachment(e.target.files?.[0] || null)} style={{ gridColumn: '1 / -1' }} />
                 </form>
             </div>
         </div>

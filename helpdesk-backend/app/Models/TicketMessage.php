@@ -25,6 +25,9 @@ class TicketMessage extends Model
         return $this->belongsTo(Ticket::class);
     }
 
-
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'message_id');
+    }
 
 }
