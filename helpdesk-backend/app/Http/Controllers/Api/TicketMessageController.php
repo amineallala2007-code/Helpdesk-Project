@@ -81,9 +81,11 @@ class TicketMessageController extends Controller
     private function authorizeTicketAccess(Request $request, Ticket $ticket): void
     {
         $user = $request->user();
-        $isStaff = in_array($this->role($user), ['admin', 'agent']);
-        $isOwner = (int) $ticket->requester_id === (int) $user->id;
+        $role = $this->role($user);
+        $isAdmin = $role === 'admin';
+        $isAssignedAgent = $role === 'agent' && (int) $ticket->assignee_id === (int) $user?->id;
+        $isOwner = (int) $ticket->requester_id === (int) $user?->id;
 
-        abort_unless($isStaff || $isOwner, 403, 'Acces interdit');
+        abort_unless($isAdmin || $isAssignedAgent || $isOwner, 403, 'Acces interdit');
     }
 }

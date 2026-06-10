@@ -18,6 +18,21 @@ class TicketController extends Controller
         return strtolower((string) ($user?->role ?? ''));
     }
 
+    private function canAccessTicket($user, Ticket $ticket): bool
+    {
+        $role = $this->role($user);
+
+        if ($role === 'admin') {
+            return true;
+        }
+
+        if ($role === 'agent') {
+            return (int) $ticket->assignee_id === (int) $user?->id;
+        }
+
+        return (int) $ticket->requester_id === (int) $user?->id;
+    }
+
     public function index()
     {
         try {
@@ -27,7 +42,9 @@ class TicketController extends Controller
             $query = Ticket::with(['requester', 'category', 'priority', 'assignee', 'attachments'])
                 ->orderBy('created_at', 'desc');
 
-            if (!in_array($role, ['admin', 'agent'])) {
+            if ($role === 'agent') {
+                $query->where('assignee_id', $user->id);
+            } elseif ($role !== 'admin') {
                 $query->where('requester_id', $user->id);
             }
 
@@ -92,10 +109,7 @@ class TicketController extends Controller
                 return response()->json(['message' => 'Non autorise'], 403);
             }
 
-            $isOwner = (int) $user->id === (int) $ticket->requester_id;
-            $isStaff = in_array($this->role($user), ['admin', 'agent']);
-
-            if (!$isStaff && !$isOwner) {
+            if (!$this->canAccessTicket($user, $ticket)) {
                 return response()->json(['message' => 'Acces interdit'], 403);
             }
 
@@ -139,8 +153,8 @@ class TicketController extends Controller
         try {
             $ticket = Ticket::findOrFail($id);
 
-            if ($role === 'agent' && $ticket->assignee_id !== null && (int) $ticket->assignee_id !== (int) $user->id) {
-                return response()->json(['message' => 'Ce ticket est gere par un autre agent'], 403);
+            if ($role === 'agent' && (int) $ticket->assignee_id !== (int) $user->id) {
+                return response()->json(['message' => 'Ce ticket doit etre assigne par un admin avant traitement'], 403);
             }
 
             if ($request->has('category_id')) {
@@ -173,27 +187,9 @@ class TicketController extends Controller
 
     public function assignToMe(Request $request, int $id)
     {
-        $user = $request->user();
-
-        if (!$user || $this->role($user) !== 'agent') {
-            return response()->json(['message' => 'Non autorise. Reserve aux agents.'], 403);
-        }
-
-        try {
-            $ticket = Ticket::findOrFail($id);
-
-            $ticket->update([
-                'assignee_id' => $user->id,
-                'status' => 'in_progress'
-            ]);
-
-            return response()->json([
-                'message' => 'Ticket assigne avec succes',
-                'ticket' => $ticket->load(['category', 'priority', 'assignee', 'attachments'])
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Erreur lors de l assignation', 'error' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'message' => 'Seul un administrateur peut assigner un ticket a un agent.'
+        ], 403);
     }
 
     public function assignAgent(Request $request, $id)

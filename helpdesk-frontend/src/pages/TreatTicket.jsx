@@ -62,15 +62,6 @@ const TreatTicket = () => {
         }
     };
 
-    const handleAssignToMe = async () => {
-        try {
-            const response = await api.put(`/tickets/${id}/assign`);
-            setTicket(response.data.ticket);
-        } catch (err) {
-            alert(err.response?.data?.message || 'Erreur lors de l assignation.');
-        }
-    };
-
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!newMessage.trim() && !attachment) return;
@@ -108,11 +99,6 @@ const TreatTicket = () => {
                         <strong>Photos du ticket:</strong>
                         {renderAttachments(ticket.attachments)}
                     </div>
-                )}
-                {!ticket?.assignee_id && (
-                    <button onClick={handleAssignToMe} style={{ marginTop: '12px', padding: '8px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                        Prendre ce ticket
-                    </button>
                 )}
                 <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
                     {['open', 'in_progress', 'resolved', 'closed'].map((s) => (
