@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import chuLogo from '../assets/chu-hassan-logo.jpeg';
 import ThemeToggle from './ThemeToggle';
+import api from '../services/api';
 
 const DashboardLayout = ({ children }) => {
     const navigate = useNavigate();
@@ -50,32 +51,40 @@ const DashboardLayout = ({ children }) => {
         reader.readAsDataURL(file);
     };
 
-    const handleSaveProfile = (e) => {
+    const handleSaveProfile = async (e) => {
         e.preventDefault();
-        const updatedUser = {
-            ...localUser,
+        const payload = {
             name: profileForm.name,
             email: profileForm.email,
             photo: profileForm.photo,
         };
 
         if (profileForm.password) {
-            updatedUser.profile_password_updated = true;
+            payload.password = profileForm.password;
         }
 
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        if (updatedUser.photo) {
+        try {
+            const response = await api.put('/profile', payload);
+            const updatedUser = {
+                ...localUser,
+                ...response.data,
+            };
+
+            localStorage.setItem('user', JSON.stringify(updatedUser));
             const savedPhotos = JSON.parse(localStorage.getItem('profilePhotos') || '{}');
-            const profileKey = updatedUser.id || updatedUser.email;
             localStorage.setItem('profilePhotos', JSON.stringify({
                 ...savedPhotos,
-                [profileKey]: updatedUser.photo,
-                [updatedUser.email]: updatedUser.photo,
+                [updatedUser.id]: updatedUser.photo || '',
+                [localUser.email]: updatedUser.photo || '',
+                [updatedUser.email]: updatedUser.photo || '',
             }));
+
+            setLocalUser(updatedUser);
+            setProfileForm(prev => ({ ...prev, password: '', photo: updatedUser.photo || '' }));
+            setProfileOpen(false);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Impossible de modifier le profil.');
         }
-        setLocalUser(updatedUser);
-        setProfileForm(prev => ({ ...prev, password: '' }));
-        setProfileOpen(false);
     };
 
     return (

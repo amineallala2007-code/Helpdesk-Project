@@ -22,9 +22,7 @@ export const AuthProvider = ({ children }) => {
                     const storedUser = JSON.parse(localStorage.getItem('user')) || {};
                     const mergedUser = {
                         ...response.data,
-                        name: storedUser.name || response.data.name,
-                        email: storedUser.email || response.data.email,
-                        photo: storedUser.photo || profilePhotoOf(response.data),
+                        photo: response.data.photo || storedUser.photo || profilePhotoOf(response.data),
                     };
                     localStorage.setItem('user', JSON.stringify(mergedUser));
                     setUser(mergedUser);
@@ -46,7 +44,7 @@ export const AuthProvider = ({ children }) => {
             const userData = response.data.user;
             const mergedUser = {
                 ...userData,
-                photo: profilePhotoOf(userData),
+                photo: userData.photo || profilePhotoOf(userData),
             };
 
             localStorage.setItem('token', token); 

@@ -23,7 +23,7 @@ class TicketMessageController extends Controller
         $this->authorizeTicketAccess($request, $ticket);
 
         $messages = TicketMessage::where('ticket_id', $ticketId)
-            ->with(['author:id,name,role', 'attachments'])
+            ->with(['author:id,name,email,role,photo', 'attachments'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -69,7 +69,7 @@ class TicketMessageController extends Controller
                 ]);
             }
 
-            $message->load(['author:id,name,role', 'attachments']);
+            $message->load(['author:id,name,email,role,photo', 'attachments']);
 
             return response()->json($message, 201);
         } catch (\Exception $e) {

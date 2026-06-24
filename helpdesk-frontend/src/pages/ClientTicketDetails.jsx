@@ -13,6 +13,13 @@ const roleLabel = (user) => {
     return 'Demandeur';
 };
 
+const savedProfilePhotos = () => JSON.parse(localStorage.getItem('profilePhotos') || '{}');
+const profilePhotoOf = (profileUser) => {
+    if (!profileUser) return '';
+    const photos = savedProfilePhotos();
+    return profileUser.photo || photos[profileUser.id] || photos[profileUser.email] || '';
+};
+
 const renderAttachments = (attachments = []) => attachments.map((file) => (
     <div key={file.id || file.url}>
         {String(file.mime || '').startsWith('image/') ? (
@@ -109,9 +116,8 @@ const ClientTicketDetails = () => {
     if (error) return <div className="chat-page"><p className="alert alert--error">{error}</p></div>;
     if (!ticket) return <div className="chat-page">Ticket introuvable.</div>;
 
-    const isCurrentAdmin = isAdminUser(user);
     const otherUser = ticket.assignee;
-    const canViewOtherProfile = isCurrentAdmin && otherUser && !isAdminUser(otherUser);
+    const canViewOtherProfile = Boolean(otherUser && !isAdminUser(otherUser));
 
     return (
         <div className="chat-page">
@@ -140,8 +146,8 @@ const ClientTicketDetails = () => {
                         {canViewOtherProfile ? (
                             <div className="ticket-user-summary">
                                 <div className="ticket-user-photo">
-                                    {otherUser?.photo ? (
-                                        <img src={otherUser.photo} alt={otherUser.name || 'Profil'} />
+                                    {profilePhotoOf(otherUser) ? (
+                                        <img src={profilePhotoOf(otherUser)} alt={otherUser.name || 'Profil'} />
                                     ) : (
                                         <span>{otherUser?.name ? otherUser.name.charAt(0).toUpperCase() : '?'}</span>
                                     )}
@@ -183,8 +189,8 @@ const ClientTicketDetails = () => {
                 {profileVisible && canViewOtherProfile && (
                     <div className="chat-profile-card">
                         <div className="chat-profile-photo">
-                            {otherUser.photo ? (
-                                <img src={otherUser.photo} alt={otherUser.name || 'Profil'} />
+                            {profilePhotoOf(otherUser) ? (
+                                <img src={profilePhotoOf(otherUser)} alt={otherUser.name || 'Profil'} />
                             ) : (
                                 <span>{otherUser.name ? otherUser.name.charAt(0).toUpperCase() : 'U'}</span>
                             )}

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -87,6 +88,35 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'password' => 'nullable|string|min:6',
+            'photo' => 'nullable|string',
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->photo = $validated['photo'] ?? null;
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        return response()->json($user);
     }
 
     public function logout(Request $request)

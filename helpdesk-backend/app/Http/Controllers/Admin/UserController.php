@@ -20,7 +20,7 @@ class UserController extends Controller
         $this->requireAdmin($request);
 
         try {
-            $users = User::select('id', 'name', 'email', 'role')->get();
+            $users = User::select('id', 'name', 'email', 'role', 'photo')->get();
             return response()->json($users, 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Erreur lors du chargement des utilisateurs'], 500);

@@ -133,11 +133,16 @@ const TreatTicket = () => {
     if (error) return <div className="chat-page"><p className="alert alert--error">{error}</p></div>;
 
     const isCurrentAdmin = isAdminUser(user);
+    const isCurrentAgent = roleOf(user) === 'agent' || roleOf(user) === '2';
     const requesterUser = ticket?.requester;
     const agentUser = ticket?.assignee;
-    const canViewTicketProfiles = isCurrentAdmin;
+    const canViewTicketProfiles = isCurrentAdmin || isCurrentAgent;
     const renderTicketUserProfiles = () => {
-        if (!canViewTicketProfiles) {
+        if (isCurrentAgent) {
+            return renderProfileCard(requesterUser, 'Demandeur');
+        }
+
+        if (!isCurrentAdmin) {
             return (
                 <div className="ticket-user-private">
                     <strong>Profil prive</strong>
@@ -230,8 +235,8 @@ const TreatTicket = () => {
 
                 {profileVisible && canViewTicketProfiles && (
                     <div className="chat-profile-list">
-                        {renderProfileCard(requesterUser, 'Demandeur')}
-                        {agentUser ? renderProfileCard(agentUser, 'Agent') : (
+                        {(isCurrentAdmin || isCurrentAgent) && renderProfileCard(requesterUser, 'Demandeur')}
+                        {isCurrentAdmin && (agentUser ? renderProfileCard(agentUser, 'Agent') : (
                             <div className="chat-profile-card">
                                 <div className="chat-profile-photo">
                                     <span>?</span>
@@ -243,7 +248,7 @@ const TreatTicket = () => {
                                     <p>Assignez un agent depuis le tableau admin.</p>
                                 </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 )}
 
