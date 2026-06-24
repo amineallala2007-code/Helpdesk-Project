@@ -135,6 +135,34 @@ class TicketController extends Controller
         return response()->json(['message' => 'Ticket supprime'], 200);
     }
 
+    public function update(Request $request, int $id)
+    {
+        $ticket = Ticket::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user || ((int) $ticket->requester_id !== (int) $user->id && $this->role($user) !== 'admin')) {
+            return response()->json(['message' => 'Non autorise'], 403);
+        }
+
+        if ($ticket->status === 'closed') {
+            return response()->json(['message' => 'Le ticket ferme ne peut pas etre modifie.'], 422);
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'category_id' => 'required|exists:categories,id',
+            'priority_id' => 'required|exists:priorities,id',
+        ]);
+
+        $ticket->update($validated);
+
+        return response()->json([
+            'message' => 'Ticket modifie avec succes.',
+            'ticket' => $ticket->load(['requester', 'category', 'priority', 'assignee', 'attachments']),
+        ]);
+    }
+
     public function updateStatus(Request $request, int $id)
     {
         $user = $request->user();

@@ -1,6 +1,8 @@
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
+import chuLogo from '../assets/chu-hassan-logo.jpeg';
+import ThemeToggle from '../components/ThemeToggle';
 
 function Login() {
     const { login } = useContext(AuthContext);
@@ -16,15 +18,6 @@ function Login() {
         password_confirmation: '',
         role: 'requester',
     });
-
-    const inputStyle = {
-        width: '100%',
-        padding: '10px',
-        marginTop: '5px',
-        borderRadius: '6px',
-        border: '1px solid #cbd5e1',
-        boxSizing: 'border-box',
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -66,62 +59,78 @@ function Login() {
     };
 
     return (
-        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#f8fafc', fontFamily: 'Arial, sans-serif' }}>
-            <div style={{ width: '100%', maxWidth: '430px', padding: '24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 15px 45px rgba(15, 23, 42, 0.08)' }}>
-                <h2 style={{ marginTop: 0, color: '#0f172a' }}>Helpdesk System</h2>
-                <p style={{ marginTop: '-8px', color: '#64748b' }}>{showRegister ? 'Demander un compte a admin' : 'Connexion'}</p>
+        <div className="auth-page">
+            <section className="auth-visual">
+                <img className="auth-visual__logo" src={chuLogo} alt="CHU Hassan II - Centre Hospitalier Hassan II Fes" />
+                <div>
+                    <h1>Plateforme Helpdesk CHU Hassan II</h1>
+                    <p>Un espace clair pour suivre les tickets, valider les demandes et garder les equipes support connectees.</p>
+                </div>
+            </section>
 
-                {error && <p style={{ color: '#b91c1c', background: '#fee2e2', padding: '10px', borderRadius: '6px', fontSize: '14px' }}>{error}</p>}
+            <section className="auth-panel">
+                <div className="auth-theme-toggle">
+                    <ThemeToggle />
+                </div>
+                <div className="auth-card">
+                    <div className="chu-brand chu-brand--compact">
+                        <img className="chu-brand__logo" src={chuLogo} alt="CHU Hassan II" />
+                    </div>
+                    <h2>{showRegister ? 'Demande d inscription' : 'Connexion'}</h2>
+                    <p>{showRegister ? 'Votre demande sera verifiee par un administrateur.' : 'Accedez a votre espace selon votre role.'}</p>
 
-                {!showRegister ? (
-                    <form onSubmit={handleSubmit}>
-                        <div style={{ marginBottom: '15px' }}>
-                            <label>Email :</label>
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
-                        </div>
-                        <div style={{ marginBottom: '15px' }}>
-                            <label>Mot de passe :</label>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} />
-                        </div>
-                        <button type="submit" disabled={submitting} style={{ width: '100%', padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            {submitting ? 'Connexion en cours...' : 'Se connecter'}
-                        </button>
-                    </form>
-                ) : (
-                    <form onSubmit={handleRequestAccount}>
-                        <div style={{ marginBottom: '12px' }}>
-                            <label>Nom :</label>
-                            <input value={requestForm.name} onChange={(e) => setRequestForm({ ...requestForm, name: e.target.value })} required style={inputStyle} />
-                        </div>
-                        <div style={{ marginBottom: '12px' }}>
-                            <label>Email :</label>
-                            <input type="email" value={requestForm.email} onChange={(e) => setRequestForm({ ...requestForm, email: e.target.value })} required style={inputStyle} />
-                        </div>
-                        <div style={{ marginBottom: '12px' }}>
-                            <label>Role demande :</label>
-                            <select value={requestForm.role} onChange={(e) => setRequestForm({ ...requestForm, role: e.target.value })} style={inputStyle}>
-                                <option value="requester">Demandeur</option>
-                                <option value="agent">Agent Support</option>
-                            </select>
-                        </div>
-                        <div style={{ marginBottom: '12px' }}>
-                            <label>Mot de passe :</label>
-                            <input type="password" value={requestForm.password} onChange={(e) => setRequestForm({ ...requestForm, password: e.target.value })} required minLength="6" style={inputStyle} />
-                        </div>
-                        <div style={{ marginBottom: '15px' }}>
-                            <label>Confirmer mot de passe :</label>
-                            <input type="password" value={requestForm.password_confirmation} onChange={(e) => setRequestForm({ ...requestForm, password_confirmation: e.target.value })} required minLength="6" style={inputStyle} />
-                        </div>
-                        <button type="submit" disabled={submitting} style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            Envoyer la demande
-                        </button>
-                    </form>
-                )}
+                    {error && <p className="alert alert--error">{error}</p>}
 
-                <button onClick={() => { setShowRegister(!showRegister); setError(''); }} style={{ marginTop: '14px', width: '100%', padding: '10px', background: 'transparent', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer' }}>
-                    {showRegister ? 'Retour connexion' : 'Demander un nouveau compte'}
-                </button>
-            </div>
+                    {!showRegister ? (
+                        <form onSubmit={handleSubmit}>
+                            <div className="field">
+                                <label>Email</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                            </div>
+                            <div className="field">
+                                <label>Mot de passe</label>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                            </div>
+                            <button className="chu-button chu-button--primary" type="submit" disabled={submitting} style={{ width: '100%' }}>
+                                {submitting ? 'Connexion en cours...' : 'Se connecter'}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleRequestAccount}>
+                            <div className="field">
+                                <label>Nom</label>
+                                <input value={requestForm.name} onChange={(e) => setRequestForm({ ...requestForm, name: e.target.value })} required />
+                            </div>
+                            <div className="field">
+                                <label>Email</label>
+                                <input type="email" value={requestForm.email} onChange={(e) => setRequestForm({ ...requestForm, email: e.target.value })} required />
+                            </div>
+                            <div className="field">
+                                <label>Role demande</label>
+                                <select value={requestForm.role} onChange={(e) => setRequestForm({ ...requestForm, role: e.target.value })}>
+                                    <option value="requester">Demandeur</option>
+                                    <option value="agent">Agent Support</option>
+                                </select>
+                            </div>
+                            <div className="field">
+                                <label>Mot de passe</label>
+                                <input type="password" value={requestForm.password} onChange={(e) => setRequestForm({ ...requestForm, password: e.target.value })} required minLength="6" />
+                            </div>
+                            <div className="field">
+                                <label>Confirmer mot de passe</label>
+                                <input type="password" value={requestForm.password_confirmation} onChange={(e) => setRequestForm({ ...requestForm, password_confirmation: e.target.value })} required minLength="6" />
+                            </div>
+                            <button className="chu-button chu-button--success" type="submit" disabled={submitting} style={{ width: '100%' }}>
+                                Envoyer la demande
+                            </button>
+                        </form>
+                    )}
+
+                    <button className="chu-button chu-button--ghost" onClick={() => { setShowRegister(!showRegister); setError(''); }} style={{ marginTop: '14px', width: '100%' }}>
+                        {showRegister ? 'Retour connexion' : 'Demander un nouveau compte'}
+                    </button>
+                </div>
+            </section>
         </div>
     );
 }

@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import CreateTicket from './pages/CreateTicket';
 import TreatTicket from './pages/TreatTicket';
 import ClientTicketDetails from './pages/ClientTicketDetails';
+import Messages from './pages/Messages';
 import DashboardLayout from './components/DashboardLayout';
 
 const PrivateRoute = ({ children }) => {
@@ -26,6 +27,11 @@ function App() {
                 <Route path="/create-ticket" element={
                     <PrivateRoute>
                         <DashboardLayout><CreateTicket /></DashboardLayout>
+                    </PrivateRoute>
+                } />
+                <Route path="/messages" element={
+                    <PrivateRoute>
+                        <DashboardLayout><Messages /></DashboardLayout>
                     </PrivateRoute>
                 } />
                 <Route path="/tickets/:id" element={

@@ -1,0 +1,24 @@
+<svg width="850" height="350" viewBox="0 0 850 350" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CHU Hassan II</title>
+  <desc id="desc">Centre Hospitalier Hassan II - Fes</desc>
+  <rect width="850" height="350" fill="#f7f7f7"/>
+  <g transform="translate(56 44)">
+    <path d="M152 0l29 29v73l-29 29-29-29V29L152 0z" fill="#3cd8dc"/>
+    <path d="M0 148l39-39h76l39 39-39 39H39L0 148z" fill="#0baeb9"/>
+    <path d="M64 46h76l40 40v67h-76l-40-40V46z" fill="#16c0c9"/>
+    <path d="M64 194h76v76H64l-39-39 39-37z" fill="#0a9caf"/>
+    <path d="M194 193l39 39v76l-39 39-39-39v-76l39-39z" fill="#0788a4"/>
+    <path d="M152 117l38 38-38 39-38-39 38-38z" fill="#0a9fab"/>
+  </g>
+  <g transform="translate(252 72)">
+    <path d="M78 72c-7 14-22 22-42 22C14 94 0 79 0 50 0 22 16 5 42 5c18 0 32 8 40 21L55 41c-4-8-10-12-19-12-12 0-20 8-20 21 0 13 8 21 20 21 9 0 16-4 21-13l21 14z" fill="#030303"/>
+    <path d="M0 110h33v43h43v-43h33v132H76v-58H33v58H0V110z" fill="#030303"/>
+    <path d="M0 258h33v51c0 18 8 27 25 27 16 0 24-9 24-27v-51h33v53c0 38-21 58-57 58-36 0-58-20-58-58v-53z" fill="#030303"/>
+  </g>
+  <g transform="translate(380 119)">
+    <text x="0" y="65" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="78" font-weight="900" letter-spacing="1" fill="#21c7ce">HASSAN II</text>
+    <text x="3" y="112" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="#030303">CENTRE HOSPITALIER HASSAN II - FES</text>
+    <path d="M8 177c86-42 216-57 393-44-120 9-245 27-382 66-23 6-35-13-11-22z" fill="#0a8ea8"/>
+    <path d="M75 166c116-30 235-38 356-22-116 3-228 19-337 47-22 6-39-18-19-25z" fill="#31d6d9"/>
+  </g>
+</svg>

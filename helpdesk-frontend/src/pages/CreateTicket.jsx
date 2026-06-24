@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -8,7 +8,8 @@ function CreateTicket() {
     const [categoryId, setCategoryId] = useState('');
     const [priorityId, setPriorityId] = useState('');
     const [attachment, setAttachment] = useState(null);
-    
+    const [attachmentPreview, setAttachmentPreview] = useState('');
+
     const [categories, setCategories] = useState([]);
     const [priorities, setPriorities] = useState([]);
     const [error, setError] = useState('');
@@ -23,18 +24,29 @@ function CreateTicket() {
                 setCategories(Array.isArray(catRes.data) ? catRes.data : []);
                 setPriorities(Array.isArray(prioRes.data) ? prioRes.data : []);
             } catch (err) {
-                console.error("Erreur fields fallback:", err);
-                setCategories([{ id: 1, name: "Technique" }, { id: 2, name: "Facturation" }]);
-                setPriorities([{ id: 1, name: "Faible" }, { id: 2, name: "Moyenne" }, { id: 3, name: "Haute" }]);
+                console.error('Erreur fields fallback:', err);
+                setCategories([{ id: 1, name: 'Technique' }, { id: 2, name: 'Facturation' }]);
+                setPriorities([{ id: 1, name: 'Faible' }, { id: 2, name: 'Moyenne' }, { id: 3, name: 'Haute' }]);
             }
         };
         fetchFields();
     }, []);
 
+    useEffect(() => {
+        if (!attachment) {
+            setAttachmentPreview('');
+            return undefined;
+        }
+
+        const objectUrl = URL.createObjectURL(attachment);
+        setAttachmentPreview(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [attachment]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!categoryId || !priorityId) {
-            setError("Veuillez choisir une catégorie et une priorité.");
+            setError('Veuillez choisir une categorie et une priorite.');
             return;
         }
 
@@ -53,98 +65,92 @@ function CreateTicket() {
 
             await api.post('/tickets', formData);
 
-            alert('Ticket créé avec succès ! 🎉');
-            navigate('/dashboard'); 
+            alert('Ticket cree avec succes.');
+            navigate('/dashboard');
         } catch (err) {
-            console.error("Erreur création ticket:", err);
-            setError(err.response?.data?.message || 'Impossible de créer le ticket.');
+            console.error('Erreur creation ticket:', err);
+            setError(err.response?.data?.message || 'Impossible de creer le ticket.');
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <div style={{ maxWidth: '500px', margin: '20px auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-            <button onClick={() => navigate('/dashboard')} style={{ marginBottom: '15px', cursor: 'pointer' }}>⬅️ Retour</button>
-            <h2>➕ Créer un nouveau Ticket</h2>
-            
-            {error && (
-                <p style={{ color: 'red', background: '#fdf2f2', padding: '10px', borderRadius: '4px' }}>
-                    ⚠️ {error}
-                </p>
-            )}
-
-            <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Titre :</label>
-                    <input 
-                        type="text" 
-                        value={title} 
-                        onChange={(e) => setTitle(e.target.value)} 
-                        required 
-                        style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Description :</label>
-                    <textarea 
-                        value={description} 
-                        onChange={(e) => setDescription(e.target.value)} 
-                        required 
-                        rows="4"
-                        style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-                    />
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Catégorie :</label>
-                    <select 
-                        value={categoryId} 
-                        onChange={(e) => setCategoryId(e.target.value)}
-                        required
-                        style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff' }}
-                    >
-                        <option value="">-- Choisir une catégorie --</option>
-                        {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                    </select>
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Priorité :</label>
-                    <select 
-                        value={priorityId} 
-                        onChange={(e) => setPriorityId(e.target.value)}
-                        required
-                        style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff' }}
-                    >
-                        <option value="">-- Choisir une priorité --</option>
-                        {priorities.map(prio => <option key={prio.id} value={prio.id}>{prio.name}</option>)}
-                    </select>
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontWeight: 'bold' }}>Photo explicative :</label>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setAttachment(e.target.files?.[0] || null)}
-                        style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', background: '#fff' }}
-                    />
-                    {attachment && <small style={{ color: '#475569' }}>Image choisie: {attachment.name}</small>}
-                </div>
-
-                <button 
-                    type="submit" 
-                    disabled={submitting} 
-                    style={{ 
-                        width: '100%', padding: '12px', background: '#28a745', color: '#fff', 
-                        border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' 
-                    }}
-                >
-                    {submitting ? 'Création en cours...' : 'Valider le Ticket'}
+        <div className="form-page">
+            <div className="form-card">
+                <button onClick={() => navigate('/dashboard')} className="chu-button chu-button--ghost" style={{ marginBottom: '18px' }}>
+                    Retour
                 </button>
-            </form>
+                <h2>Creer un nouveau Ticket</h2>
+
+                {error && <p className="alert alert--error">{error}</p>}
+
+                <form onSubmit={handleSubmit}>
+                    <div className="field">
+                        <label>Titre</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            required
+                            placeholder="Sujet du probleme"
+                        />
+                    </div>
+
+                    <div className="field">
+                        <label>Description</label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            required
+                            rows="5"
+                            placeholder="Expliquez le besoin ou le probleme"
+                        />
+                    </div>
+
+                    <div className="field">
+                        <label>Categorie</label>
+                        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+                            <option value="">Choisir une categorie</option>
+                            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="field">
+                        <label>Priorite</label>
+                        <select value={priorityId} onChange={(e) => setPriorityId(e.target.value)} required>
+                            <option value="">Choisir une priorite</option>
+                            {priorities.map(prio => <option key={prio.id} value={prio.id}>{prio.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="field">
+                        <label>Photo explicative</label>
+                        <label htmlFor="ticket-image" className="cover-upload-wrapper">
+                            {attachmentPreview ? (
+                                <img src={attachmentPreview} alt="Photo explicative" />
+                            ) : (
+                                <div className="cover-upload-placeholder">
+                                    <strong>+</strong>
+                                    <span>Cliquez pour telecharger une image explicative</span>
+                                </div>
+                            )}
+                        </label>
+                        <input
+                            id="ticket-image"
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                        />
+                        {attachment && <small style={{ color: '#475569' }}>Image choisie: {attachment.name}</small>}
+                    </div>
+
+                    <button className="chu-button chu-button--primary" type="submit" disabled={submitting} style={{ width: '100%' }}>
+                        {submitting ? 'Creation en cours...' : 'Valider le Ticket'}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 }

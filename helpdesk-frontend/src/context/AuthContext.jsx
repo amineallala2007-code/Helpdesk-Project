@@ -3,6 +3,12 @@ import api from '../services/api';
 
 export const AuthContext = createContext();
 
+const profilePhotoOf = (user) => {
+    if (!user) return '';
+    const photos = JSON.parse(localStorage.getItem('profilePhotos') || '{}');
+    return user.photo || photos[user.id] || photos[user.email] || '';
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -13,7 +19,15 @@ export const AuthProvider = ({ children }) => {
             if (token) {
                 try {
                     const response = await api.get('/me');
-                    setUser(response.data);
+                    const storedUser = JSON.parse(localStorage.getItem('user')) || {};
+                    const mergedUser = {
+                        ...response.data,
+                        name: storedUser.name || response.data.name,
+                        email: storedUser.email || response.data.email,
+                        photo: storedUser.photo || profilePhotoOf(response.data),
+                    };
+                    localStorage.setItem('user', JSON.stringify(mergedUser));
+                    setUser(mergedUser);
                 } catch (err) {
                     localStorage.removeItem('token');
                     setUser(null);
@@ -30,12 +44,16 @@ export const AuthProvider = ({ children }) => {
             
             const token = response.data.token;
             const userData = response.data.user;
+            const mergedUser = {
+                ...userData,
+                photo: profilePhotoOf(userData),
+            };
 
             localStorage.setItem('token', token); 
-            localStorage.setItem('user', JSON.stringify(userData));
-            setUser(userData); 
+            localStorage.setItem('user', JSON.stringify(mergedUser));
+            setUser(mergedUser); 
 
-            return userData;
+            return mergedUser;
         } catch (error) {
             throw error;
         }

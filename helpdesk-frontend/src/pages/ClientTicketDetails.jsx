@@ -2,13 +2,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 
-const imageBox = { marginTop: '8px', maxWidth: '260px', borderRadius: '8px', border: '1px solid #e2e8f0' };
+const imageBox = { marginTop: '8px', maxWidth: '260px', borderRadius: '8px', border: '1px solid #d8ecef' };
+
+const roleOf = (user) => String(user?.role || '').toLowerCase();
+const isAdminUser = (user) => roleOf(user) === 'admin' || roleOf(user) === '1';
+const roleLabel = (user) => {
+    const role = roleOf(user);
+    if (role === 'agent' || role === '2') return 'Agent';
+    if (role === 'admin' || role === '1') return 'Admin';
+    return 'Demandeur';
+};
 
 const renderAttachments = (attachments = []) => attachments.map((file) => (
     <div key={file.id || file.url}>
         {String(file.mime || '').startsWith('image/') ? (
             <a href={file.url} target="_blank" rel="noreferrer">
-                <img src={file.url} alt={file.original_name || 'piece jointe'} style={imageBox} />
+                <img src={file.url} alt={file.original_name || 'piece jointe'} className="ticket-attachment-preview" style={imageBox} />
             </a>
         ) : (
             <a href={file.url} target="_blank" rel="noreferrer">{file.original_name || 'Piece jointe'}</a>
@@ -26,12 +35,25 @@ const ClientTicketDetails = () => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [attachment, setAttachment] = useState(null);
+    const [attachmentPreview, setAttachmentPreview] = useState('');
+    const [profileVisible, setProfileVisible] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    useEffect(() => {
+        if (!attachment) {
+            setAttachmentPreview('');
+            return undefined;
+        }
+
+        const objectUrl = URL.createObjectURL(attachment);
+        setAttachmentPreview(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [attachment]);
 
     const fetchTicketDetails = async () => {
         try {
@@ -83,60 +105,141 @@ const ClientTicketDetails = () => {
         }
     };
 
-    if (loading) return <div style={{ padding: '20px' }}>Chargement...</div>;
-    if (error) return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
-    if (!ticket) return <div style={{ padding: '20px' }}>Ticket introuvable.</div>;
+    if (loading) return <div className="chat-page">Chargement...</div>;
+    if (error) return <div className="chat-page"><p className="alert alert--error">{error}</p></div>;
+    if (!ticket) return <div className="chat-page">Ticket introuvable.</div>;
+
+    const isCurrentAdmin = isAdminUser(user);
+    const otherUser = ticket.assignee;
+    const canViewOtherProfile = isCurrentAdmin && otherUser && !isAdminUser(otherUser);
 
     return (
-        <div style={{ padding: '30px', maxWidth: '820px', margin: '0 auto', fontFamily: 'Segoe UI, sans-serif' }}>
-            <button onClick={() => navigate('/dashboard')} style={{ marginBottom: '20px', cursor: 'pointer' }}>Retour</button>
+        <div className="chat-page">
+            <div className="chat-card ticket-details">
+                <button onClick={() => navigate('/dashboard')} className="chu-button chu-button--ghost" style={{ marginBottom: '18px' }}>Retour</button>
+                <div className="ticket-detail-grid">
+                    <section className="ticket-detail-box">
+                        <span className="ticket-detail-label">Probleme</span>
+                        <h2>{ticket.title}</h2>
+                        <p>{ticket.description}</p>
+                        <span className="role-badge">Statut: {ticket.status.toUpperCase()}</span>
+                        <div className="ticket-photo-box">
+                            <strong>Photos du ticket</strong>
+                            {ticket.attachments?.length > 0 ? (
+                                <div className="ticket-photo-grid">
+                                    {renderAttachments(ticket.attachments)}
+                                </div>
+                            ) : (
+                                <p>Aucune photo ajoutee.</p>
+                            )}
+                        </div>
+                    </section>
 
-            <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', marginBottom: '20px', borderLeft: '5px solid #0d6efd' }}>
-                <h2 style={{ margin: '0 0 10px' }}>{ticket.title}</h2>
-                <p style={{ color: '#475569' }}>{ticket.description}</p>
-                <p><strong>Agent:</strong> {ticket.assignee?.name || 'Pas encore assigne'}</p>
-                <span style={{ padding: '5px 10px', borderRadius: '20px', background: '#e2e8f0', fontWeight: 'bold' }}>
-                    Statut: {ticket.status.toUpperCase()}
-                </span>
-                {ticket.attachments?.length > 0 && (
-                    <div style={{ marginTop: '14px' }}>
-                        <strong>Photos du ticket:</strong>
-                        {renderAttachments(ticket.attachments)}
-                    </div>
-                )}
+                    <section className="ticket-detail-box">
+                        <span className="ticket-detail-label">Autre utilisateur</span>
+                        {canViewOtherProfile ? (
+                            <div className="ticket-user-summary">
+                                <div className="ticket-user-photo">
+                                    {otherUser?.photo ? (
+                                        <img src={otherUser.photo} alt={otherUser.name || 'Profil'} />
+                                    ) : (
+                                        <span>{otherUser?.name ? otherUser.name.charAt(0).toUpperCase() : '?'}</span>
+                                    )}
+                                </div>
+                                <div className="ticket-user-info">
+                                    <strong>{otherUser?.name || 'Pas encore assigne'}</strong>
+                                    <span>{otherUser?.email || 'Email non disponible'}</span>
+                                    <span>{otherUser ? roleLabel(otherUser) : 'Agent'}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="ticket-user-private">
+                                <strong>Profil prive</strong>
+                                <span>Seul cet utilisateur peut voir son profil.</span>
+                            </div>
+                        )}
+                    </section>
+                </div>
+
                 {ticket.status === 'resolved' && (
-                    <button onClick={handleConfirmSolution} style={{ marginTop: '16px', padding: '10px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                        Valider la solution et fermer le ticket
-                    </button>
+                    <div style={{ marginTop: '16px' }}>
+                        <button onClick={handleConfirmSolution} className="chu-button chu-button--success">
+                            Valider la solution et fermer le ticket
+                        </button>
+                    </div>
                 )}
             </div>
 
-            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px' }}>
-                <h3 style={{ marginTop: 0 }}>Discussion</h3>
-                <div style={{ height: '330px', overflowY: 'auto', border: '1px solid #f1f5f9', padding: '15px', borderRadius: '8px', background: '#f8fafc', marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div className="chat-card chat-shell" style={{ marginTop: '22px' }}>
+                <div className="chat-header">
+                    <h2 style={{ fontSize: '26px', marginBottom: 0 }}>Discussion</h2>
+                    {canViewOtherProfile && (
+                        <button className="chu-button chu-button--ghost" onClick={() => setProfileVisible(prev => !prev)}>
+                            Voir profil
+                        </button>
+                    )}
+                </div>
+
+                {profileVisible && canViewOtherProfile && (
+                    <div className="chat-profile-card">
+                        <div className="chat-profile-photo">
+                            {otherUser.photo ? (
+                                <img src={otherUser.photo} alt={otherUser.name || 'Profil'} />
+                            ) : (
+                                <span>{otherUser.name ? otherUser.name.charAt(0).toUpperCase() : 'U'}</span>
+                            )}
+                        </div>
+                        <div className="chat-profile-info">
+                            <strong>{otherUser.name || 'Utilisateur'}</strong>
+                            <span>{otherUser.email || 'Email non disponible'}</span>
+                            <span>{roleLabel(otherUser)}</span>
+                            <p>Remarque: le profil admin n est pas affiche aux utilisateurs.</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="chat-window">
                     {messages.map((msg) => {
                         const isMe = msg.author_id === user.id;
                         const authorName = msg.author?.name || 'Utilisateur';
 
                         return (
-                            <div key={msg.id} style={{ textAlign: isMe ? 'right' : 'left' }}>
-                                <div style={{ display: 'inline-block', padding: '9px 12px', borderRadius: '8px', background: isMe ? '#0d6efd' : '#e9ecef', color: isMe ? '#fff' : '#000', textAlign: 'left', maxWidth: '80%', fontSize: '14px' }}>
+                            <div key={msg.id} className={`message-row ${isMe ? 'is-me' : ''}`}>
+                                <div className="message-bubble">
                                     {msg.body && <div>{msg.body}</div>}
                                     {renderAttachments(msg.attachments)}
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                    {isMe ? 'Vous' : authorName}
-                                </div>
+                                <div className="message-author">{isMe ? 'Vous' : authorName}</div>
                             </div>
                         );
                     })}
                     <div ref={chatEndRef} />
                 </div>
 
-                <form onSubmit={handleSendMessage} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px' }}>
-                    <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={ticket.status === 'closed'} placeholder={ticket.status === 'closed' ? 'Ferme' : 'Repondre...'} style={{ padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                    <button type="submit" disabled={ticket.status === 'closed'} style={{ padding: '0 24px', background: '#0d6efd', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Envoyer</button>
-                    <input type="file" accept="image/*" disabled={ticket.status === 'closed'} onChange={(e) => setAttachment(e.target.files?.[0] || null)} style={{ gridColumn: '1 / -1' }} />
+                <form onSubmit={handleSendMessage} className="chat-form">
+                    <input className="chu-input" type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={ticket.status === 'closed'} placeholder={ticket.status === 'closed' ? 'Ferme' : 'Repondre...'} />
+                    <button className="chu-button chu-button--primary" type="submit" disabled={ticket.status === 'closed'}>Envoyer</button>
+                    <label htmlFor="client-chat-image" className={`cover-upload-wrapper chat-upload ${ticket.status === 'closed' ? 'is-disabled' : ''}`}>
+                        {attachmentPreview ? (
+                            <img src={attachmentPreview} alt="Image du message" />
+                        ) : (
+                            <div className="cover-upload-placeholder">
+                                <strong>+</strong>
+                                <span>Cliquez pour telecharger votre image principale</span>
+                            </div>
+                        )}
+                    </label>
+                    <input
+                        id="client-chat-image"
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        disabled={ticket.status === 'closed'}
+                        onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                    />
+                    <div className="upload-file-name">
+                        {attachment ? attachment.name : ''}
+                    </div>
                 </form>
             </div>
         </div>
